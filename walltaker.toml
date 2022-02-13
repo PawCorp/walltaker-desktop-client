@@ -1,0 +1,12 @@
+[Base] # do not change
+base = "http://joi.how:3000/links/"
+
+[Feed] # the link number to watch
+feed = 0 # placeholder; please replace with your number, otherwise this will error out
+
+[Preferences]
+# interval: how many seconds to wait between check-ins. Recommended: 10
+interval = 10
+
+# mode: whether to "crop" or "fit" the images
+mode = "crop"
