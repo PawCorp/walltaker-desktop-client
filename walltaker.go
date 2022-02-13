@@ -163,6 +163,7 @@ func main() {
 			fmt.Printf("New wallpaper found! Setting...")
 			err = wallpaper.SetFromURL(wallpaperUrl)
 			fmt.Printf("Set!")
+			oldWallpaperUrl = wallpaperUrl
 		} else {
 			fmt.Printf("Nothing new yet.")
 		}
