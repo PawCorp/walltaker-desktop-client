@@ -42,7 +42,7 @@ func getWalltakerData(url string) WalltakerData {
 		log.Fatal(err)
 	}
 
-	req.Header.Set("User-Agent", "Walltaker Go Client/1.0.1")
+	req.Header.Set("User-Agent", "Walltaker Go Client/1.0.2")
 
 	res, getErr := webClient.Do(req)
 	if getErr != nil {
@@ -96,7 +96,7 @@ func main() {
 	╚███╔███╔╝██║  ██║███████╗███████╗██║   ██║  ██║██║  ██╗███████╗██║  ██║
 	 ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 																			
-	 	v1.0.1. Go client by @OddPawsX
+	 	v1.0.2. Go client by @OddPawsX
 	 		 	Walltaker by Gray over at joi.how <3
 
 	(You can minimize this window; it will periodically check in for new wallpapers)
