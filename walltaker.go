@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/guregu/null"
+	"github.com/hugolgst/rich-go/client"
 	"github.com/kardianos/osext"
 	"github.com/pelletier/go-toml"
 	"github.com/reujab/wallpaper"
@@ -122,8 +123,32 @@ func main() {
 	feed := config.Get("Feed.feed").(int64)
 	freq := config.Get("Preferences.interval").(int64)
 	mode := config.Get("Preferences.mode").(string)
+	useDiscord := config.Get("Preferences.discordPresence").(bool)
 
 	builtUrl := base + strconv.FormatInt(feed, 10) + ".json"
+
+	if useDiscord == true {
+		discorderr := client.Login("942796233033019504")
+		if discorderr != nil {
+			log.Fatal(discorderr)
+		}
+
+		timeNow := time.Now()
+		discorderr = client.SetActivity(client.Activity{
+			State:      "Set my wallpaper~",
+			Details:    strings.Replace(builtUrl, ".json", "", -1),
+			LargeImage: "eggplant",
+			LargeText:  "Powered by joi.how",
+			Timestamps: &client.Timestamps{
+				Start: &timeNow,
+			},
+		})
+
+		if discorderr != nil {
+			log.Fatal(discorderr)
+		}
+	}
+
 	fmt.Printf("Checking in every %d seconds...\r\n", freq)
 
 	userData := getWalltakerData(builtUrl)
