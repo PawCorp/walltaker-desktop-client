@@ -116,7 +116,7 @@ func main() {
 	}
 
     bg, err := wallpaper.Get()
-    fmt.Println("Detected original wallpaper as: ", bg, "\r\n")
+    fmt.Println("Detected original wallpaper as: ", bg)
 
     c := make(chan os.Signal)
     signal.Notify(c, os.Interrupt)
