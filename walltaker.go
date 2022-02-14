@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"os"
     "os/signal"
+    "path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+    "io"
 
 	"github.com/guregu/null"
 	"github.com/hugolgst/rich-go/client"
@@ -108,6 +110,51 @@ func clearWindowsWallpaperCache() {
 	}
 }
 
+func goSetWallpaper(url string, saveLocally bool) {
+     clearWindowsWallpaperCache()
+     if runtime.GOOS != "windows" {
+		wallpaper.SetFromFile("") // free up for macOS
+	 }
+     err := wallpaper.SetFromURL(url)
+
+     if saveLocally {
+        saveWallpaperLocally(url)
+     }
+
+     if err != nil {
+        fmt.Println("Ouch! Had a problem while setting your wallpaper.")
+        fmt.Println("Full error: ", err)
+     }
+     return
+}
+
+func saveWallpaperLocally(url string) {
+     folderPath, err := osext.ExecutableFolder()
+     filename := filepath.Join(folderPath, "download", path.Base(url))
+     _, err = os.Stat(filename)
+
+     if os.IsNotExist(err) {
+
+        fmt.Printf("Downloading", url, " to ", filename)
+        response, err := http.Get(url)
+        if err != nil {
+            return
+        }
+
+        defer response.Body.Close()
+
+        file, err := os.Create(filename)
+        if err != nil {
+        return
+        }
+        defer file.Close()
+        _, err = io.Copy(file, response.Body)
+     } else {
+        fmt.Printf("Wallpaper file already exists, skipping! ")
+     }
+     return
+}
+
 func main() {
 	// fmt.Println("WALLTAKER CLIENT")
 	fmt.Println(`
@@ -132,7 +179,7 @@ func main() {
 	fmt.Println("Loaded config from " + filepath.Join(folderPath, "walltaker.toml"))
 
 	dat, err := os.ReadFile(filepath.Join(folderPath, "walltaker.toml"))
-	if err != nil {
+    if err != nil {
 		log.Fatal(err)
 	}
 
@@ -155,6 +202,7 @@ func main() {
 	feed := config.Get("Feed.feed").(int64)
 	freq := config.Get("Preferences.interval").(int64)
 	mode := config.Get("Preferences.mode").(string)
+    saveLocally := config.Get("Preferences.saveLocally").(bool)
 	useDiscord := config.Get("Preferences.discordPresence").(bool)
 
 	builtUrl := base + strconv.FormatInt(feed, 10) + ".json"
@@ -181,6 +229,15 @@ func main() {
 		}
 	}
 
+    if saveLocally == true {
+        fmt.Println("Local saving enabled")
+        _, err := os.Stat(filepath.Join(folderPath, "download"))
+        if os.IsNotExist(err) {
+           fmt.Println("Created download directory since it did not exist")
+           os.Mkdir(filepath.Join(folderPath, "download"), os.FileMode(0777))
+        }
+    }
+
 	fmt.Printf("Checking in every %d seconds...\r\n", freq)
 
 	userData := getWalltakerData(builtUrl)
@@ -199,12 +256,8 @@ func main() {
 		}
 	}
 
-	clearWindowsWallpaperCache()
-	if runtime.GOOS != "windows" {
-		err = wallpaper.SetFromFile("") // free up for macOS
-	}
-	err = wallpaper.SetFromURL(wallpaperUrl)
-	fmt.Println("Set initial wallpaper: DONE")
+    goSetWallpaper(wallpaperUrl, saveLocally)
+    fmt.Println("Set initial wallpaper: DONE")
 
 	if strings.ToLower(mode) == "fit" {
 		err = wallpaper.SetMode(wallpaper.Fit)
@@ -221,13 +274,11 @@ func main() {
 		userData := getWalltakerData(builtUrl)
 		wallpaperUrl := userData.PostURL.String
 		if wallpaperUrl != oldWallpaperUrl {
-			fmt.Printf("New wallpaper found! Setting...")
-			clearWindowsWallpaperCache()
-			if runtime.GOOS != "windows" {
-				err = wallpaper.SetFromFile("") // free up for macOS
-			}
-			err = wallpaper.SetFromURL(wallpaperUrl)
-			fmt.Printf("Set!")
+			fmt.Printf("New wallpaper found! Setting... ")
+
+            goSetWallpaper(wallpaperUrl, saveLocally)
+
+            fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
 		} else {
 			fmt.Printf("Nothing new yet.")
