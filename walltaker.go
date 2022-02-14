@@ -135,13 +135,13 @@ func saveWallpaperLocally(url string) {
 
 	 if os.IsNotExist(err) {
 
-		fmt.Printf("Downloading", url, " to ", filename)
+		//fmt.Printf("Downloading", url, " to ", filename)
   		response, err := http.Get(url)
   		if err != nil {
   			return
   		}
 
-		defer response.Body.Close()
+        defer response.Body.Close()
 
 		file, err := os.Create(filename)
 		if err != nil {
