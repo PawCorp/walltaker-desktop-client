@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+    "os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -114,6 +115,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+    bg, err := wallpaper.Get()
+    fmt.Println("Detected original wallpaper as: ", bg)
+
+    c := make(chan os.Signal)
+    signal.Notify(c, os.Interrupt)
+    go func() {
+        <-c
+        wallpaper.SetFromFile(bg)
+        os.Exit(0)
+    }()
 
 	tomlDat := string(dat)
 
