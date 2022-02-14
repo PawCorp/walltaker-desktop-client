@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+    "os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -43,7 +45,7 @@ func getWalltakerData(url string) WalltakerData {
 		log.Fatal(err)
 	}
 
-	req.Header.Set("User-Agent", "Walltaker Go Client/1.1.0")
+	req.Header.Set("User-Agent", "Walltaker Go Client/1.1.1")
 
 	res, getErr := webClient.Do(req)
 	if getErr != nil {
@@ -87,6 +89,25 @@ func getWallpaperUrlFromData(userData WalltakerData) (string, error) {
 	return userData.PostURL.String, nil
 }
 
+func clearWindowsWallpaperCache() {
+	// Remove cached wallpaper files, issue #12
+	if runtime.GOOS == "windows" {
+		windowsWallpaperCacheDir := os.Getenv("APPDATA") + "\\Microsoft\\Windows\\Themes"
+		if _, err := os.Stat(windowsWallpaperCacheDir + "\\TranscodedWallpaper"); !os.IsNotExist(err) {
+			e := os.Remove(windowsWallpaperCacheDir + "\\TranscodedWallpaper")
+			if e != nil {
+				log.Fatal(e)
+			}
+		}
+		if _, err2 := os.Stat(windowsWallpaperCacheDir + "\\CachedFiles"); !os.IsNotExist(err2) {
+			e2 := os.RemoveAll(windowsWallpaperCacheDir + "\\CachedFiles")
+			if e2 != nil {
+				log.Fatal(e2)
+			}
+		}
+	}
+}
+
 func main() {
 	// fmt.Println("WALLTAKER CLIENT")
 	fmt.Println(`
@@ -97,7 +118,7 @@ func main() {
 	╚███╔███╔╝██║  ██║███████╗███████╗██║   ██║  ██║██║  ██╗███████╗██║  ██║
 	 ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 																			
-	 	v1.1.0. Go client by @OddPawsX
+	 	v1.1.1. Go client by @OddPawsX
 	 		 	Walltaker by Gray over at joi.how <3
 
 	(You can minimize this window; it will periodically check in for new wallpapers)
@@ -114,6 +135,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+    bg, err := wallpaper.Get()
+    fmt.Println("Detected original wallpaper as: ", bg)
+
+    c := make(chan os.Signal)
+    signal.Notify(c, os.Interrupt)
+    go func() {
+        <-c
+        wallpaper.SetFromFile(bg)
+        os.Exit(0)
+    }()
 
 	tomlDat := string(dat)
 
@@ -167,7 +199,10 @@ func main() {
 		}
 	}
 
-	err = wallpaper.SetFromFile("") // free up for macOS
+	clearWindowsWallpaperCache()
+	if runtime.GOOS != "windows" {
+		err = wallpaper.SetFromFile("") // free up for macOS
+	}
 	err = wallpaper.SetFromURL(wallpaperUrl)
 	fmt.Println("Set initial wallpaper: DONE")
 
@@ -187,7 +222,10 @@ func main() {
 		wallpaperUrl := userData.PostURL.String
 		if wallpaperUrl != oldWallpaperUrl {
 			fmt.Printf("New wallpaper found! Setting...")
-			err = wallpaper.SetFromFile("") // free up for macOS
+			clearWindowsWallpaperCache()
+			if runtime.GOOS != "windows" {
+				err = wallpaper.SetFromFile("") // free up for macOS
+			}
 			err = wallpaper.SetFromURL(wallpaperUrl)
 			fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
