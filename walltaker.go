@@ -142,6 +142,7 @@ func main() {
 		}
 	}
 
+	err = wallpaper.SetFromFile("") // free up for macOS
 	err = wallpaper.SetFromURL(wallpaperUrl)
 	fmt.Println("Set initial wallpaper: DONE")
 
@@ -161,6 +162,7 @@ func main() {
 		wallpaperUrl := userData.PostURL.String
 		if wallpaperUrl != oldWallpaperUrl {
 			fmt.Printf("New wallpaper found! Setting...")
+			err = wallpaper.SetFromFile("") // free up for macOS
 			err = wallpaper.SetFromURL(wallpaperUrl)
 			fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
