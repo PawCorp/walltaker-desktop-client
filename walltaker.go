@@ -7,14 +7,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-    "os/signal"
-    "path"
+  "os/signal"
+  "path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
-    "io"
+  "io"
 
 	"github.com/guregu/null"
 	"github.com/hugolgst/rich-go/client"
@@ -175,7 +175,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	fmt.Println("Loaded config from " + filepath.Join(folderPath, "walltaker.toml"))
 
 	dat, err := os.ReadFile(filepath.Join(folderPath, "walltaker.toml"))
