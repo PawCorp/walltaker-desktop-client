@@ -9,6 +9,7 @@ import (
 	"os"
     "os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -86,6 +87,44 @@ func getWallpaperUrlFromData(userData WalltakerData) (string, error) {
 		}
 	}
 	return userData.PostURL.String, nil
+}
+
+func RemoveContents(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func clearWindowsWallpaperCache() {
+	// Remove cached wallpaper files, issue #12
+	if runtime.GOOS == "windows" {
+		windowsWallpaperCacheDir := os.Getenv("APPDATA") + "\\Microsoft\\Windows\\Themes"
+		if _, err := os.Stat(windowsWallpaperCacheDir + "\\TranscodedWallpaper"); !os.IsNotExist(err) {
+			e := os.Remove(windowsWallpaperCacheDir + "\\TranscodedWallpaper")
+			if e != nil {
+				log.Fatal(e)
+			}
+		}
+		if _, err2 := os.Stat(windowsWallpaperCacheDir + "\\CachedFiles"); !os.IsNotExist(err2) {
+			e2 := os.RemoveAll(windowsWallpaperCacheDir + "\\CachedFiles")
+			if e2 != nil {
+				log.Fatal(e2)
+			}
+		}
+	}
 }
 
 func main() {
@@ -179,7 +218,10 @@ func main() {
 		}
 	}
 
-	err = wallpaper.SetFromFile("") // free up for macOS
+	clearWindowsWallpaperCache()
+	if runtime.GOOS != "windows" {
+		err = wallpaper.SetFromFile("") // free up for macOS
+	}
 	err = wallpaper.SetFromURL(wallpaperUrl)
 	fmt.Println("Set initial wallpaper: DONE")
 
@@ -199,7 +241,10 @@ func main() {
 		wallpaperUrl := userData.PostURL.String
 		if wallpaperUrl != oldWallpaperUrl {
 			fmt.Printf("New wallpaper found! Setting...")
-			err = wallpaper.SetFromFile("") // free up for macOS
+			clearWindowsWallpaperCache()
+			if runtime.GOOS != "windows" {
+				err = wallpaper.SetFromFile("") // free up for macOS
+			}
 			err = wallpaper.SetFromURL(wallpaperUrl)
 			fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
