@@ -227,7 +227,7 @@ func main() {
 		if discorderr != nil {
 			log.Fatal(discorderr)
 		}
-	}
+    }
 
     if saveLocally == true {
         fmt.Println("Local saving enabled")
