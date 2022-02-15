@@ -34,6 +34,7 @@ type WalltakerData struct {
 	PostDescription  interface{} `json:"post_description"`
 	CreatedAt        time.Time   `json:"created_at"`
 	UpdatedAt        time.Time   `json:"updated_at"`
+    SetBy            null.String `json:"set_by"`
 	URL              string      `json:"url"`
 }
 
@@ -273,10 +274,17 @@ func main() {
 		fmt.Printf("Polling... ")
 		userData := getWalltakerData(builtUrl)
 		wallpaperUrl := userData.PostURL.String
+        setterName := userData.SetBy.String
+
 		if wallpaperUrl != oldWallpaperUrl {
-			fmt.Printf("New wallpaper found! Setting... ")
-      			goSetWallpaper(wallpaperUrl, saveLocally)
-    			fmt.Printf("Set!")
+            if setterName != "" {
+               fmt.Printf(setterName)
+               fmt.Printf(" set your wallpaper! Setting...")
+            } else {
+              fmt.Printf("New wallpaper found! Setting...")
+            }
+      		goSetWallpaper(wallpaperUrl, saveLocally)
+    		fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
 		} else {
 			fmt.Printf("Nothing new yet.")
