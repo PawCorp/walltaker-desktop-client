@@ -279,9 +279,9 @@ func main() {
 		if wallpaperUrl != oldWallpaperUrl {
             if setterName != "" {
                fmt.Printf(setterName)
-               fmt.Printf(" set your wallpaper! Setting...")
+               fmt.Printf(" set your wallpaper! Setting... ")
             } else {
-              fmt.Printf("New wallpaper found! Setting...")
+              fmt.Printf("New wallpaper found! Setting... ")
             }
       		goSetWallpaper(wallpaperUrl, saveLocally)
     		fmt.Printf("Set!")
