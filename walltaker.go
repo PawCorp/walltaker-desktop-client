@@ -111,7 +111,7 @@ func clearWindowsWallpaperCache() {
 	}
 }
 
-func goSetWallpaper(url string, saveLocally bool) {
+func goSetWallpaper(url string, saveLocally bool, setterName string, setAt string) {
 	clearWindowsWallpaperCache()
 	if runtime.GOOS != "windows" {
 		wallpaper.SetFromFile("") // free up for macOS
@@ -119,7 +119,7 @@ func goSetWallpaper(url string, saveLocally bool) {
 	err := wallpaper.SetFromURL(url)
 
 	if saveLocally {
-		saveWallpaperLocally(url)
+		saveWallpaperLocally(url, setterName, setAt)
 	}
 
 	if err != nil {
@@ -129,9 +129,13 @@ func goSetWallpaper(url string, saveLocally bool) {
 	return
 }
 
-func saveWallpaperLocally(url string) {
+func saveWallpaperLocally(url string, setterName string, setAt string) {
+	if setterName == "" {
+		setterName = "anonymous"
+	}
+
 	folderPath, err := osext.ExecutableFolder()
-	filename := filepath.Join(folderPath, "download", path.Base(url))
+	filename := filepath.Join(folderPath, "download", "walltaker_"+setterName+"_"+setAt+"_"+path.Base(url))
 	_, err = os.Stat(filename)
 
 	if os.IsNotExist(err) {
@@ -257,7 +261,9 @@ func main() {
 		}
 	}
 
-	goSetWallpaper(wallpaperUrl, saveLocally)
+	setterName := userData.SetBy.String
+	setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
+	goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt)
 	fmt.Println("Set initial wallpaper: DONE")
 
 	if strings.ToLower(mode) == "fit" {
@@ -275,6 +281,7 @@ func main() {
 		userData := getWalltakerData(builtUrl)
 		wallpaperUrl := userData.PostURL.String
 		setterName := userData.SetBy.String
+		setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
 
 		if wallpaperUrl != oldWallpaperUrl {
 			if setterName != "" {
@@ -283,7 +290,7 @@ func main() {
 			} else {
 				fmt.Printf("New wallpaper found! Setting... ")
 			}
-			goSetWallpaper(wallpaperUrl, saveLocally)
+			goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt)
 			fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
 		} else {
