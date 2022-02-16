@@ -3,18 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-  	"os/signal"
-  	"path"
+	"os/signal"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
-  	"io"
 
 	"github.com/guregu/null"
 	"github.com/hugolgst/rich-go/client"
@@ -34,7 +34,7 @@ type WalltakerData struct {
 	PostDescription  interface{} `json:"post_description"`
 	CreatedAt        time.Time   `json:"created_at"`
 	UpdatedAt        time.Time   `json:"updated_at"`
-    SetBy            null.String `json:"set_by"`
+	SetBy            null.String `json:"set_by"`
 	URL              string      `json:"url"`
 }
 
@@ -113,45 +113,45 @@ func clearWindowsWallpaperCache() {
 
 func goSetWallpaper(url string, saveLocally bool) {
 	clearWindowsWallpaperCache()
- 	if runtime.GOOS != "windows" {
+	if runtime.GOOS != "windows" {
 		wallpaper.SetFromFile("") // free up for macOS
 	}
- 	err := wallpaper.SetFromURL(url)
+	err := wallpaper.SetFromURL(url)
 
-	 if saveLocally {
-  		saveWallpaperLocally(url)
- 	}
+	if saveLocally {
+		saveWallpaperLocally(url)
+	}
 
-	 if err != nil {
-  		fmt.Println("Ouch! Had a problem while setting your wallpaper.")
-    		fmt.Println("Full error: ", err)
-  	}
+	if err != nil {
+		fmt.Println("Ouch! Had a problem while setting your wallpaper.")
+		fmt.Println("Full error: ", err)
+	}
 	return
 }
 
 func saveWallpaperLocally(url string) {
 	folderPath, err := osext.ExecutableFolder()
- 	filename := filepath.Join(folderPath, "download", path.Base(url))
- 	_, err = os.Stat(filename)
+	filename := filepath.Join(folderPath, "download", path.Base(url))
+	_, err = os.Stat(filename)
 
-	 if os.IsNotExist(err) {
+	if os.IsNotExist(err) {
 
 		//fmt.Printf("Downloading", url, " to ", filename)
-  		response, err := http.Get(url)
-  		if err != nil {
-  			return
-  		}
+		response, err := http.Get(url)
+		if err != nil {
+			return
+		}
 
-        defer response.Body.Close()
+		defer response.Body.Close()
 
 		file, err := os.Create(filename)
 		if err != nil {
-  			return
-  		}
-  		defer file.Close()
- 		_, err = io.Copy(file, response.Body)
- 	} else {
-  		fmt.Printf("Wallpaper file already exists, skipping! ")
+			return
+		}
+		defer file.Close()
+		_, err = io.Copy(file, response.Body)
+	} else {
+		fmt.Printf("Wallpaper file already exists, skipping! ")
 	}
 	return
 }
@@ -176,7 +176,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	fmt.Println("Loaded config from " + filepath.Join(folderPath, "walltaker.toml"))
 
 	dat, err := os.ReadFile(filepath.Join(folderPath, "walltaker.toml"))
@@ -185,15 +185,15 @@ func main() {
 	}
 
 	bg, err := wallpaper.Get()
- 	fmt.Println("Detected original wallpaper as: ", bg)
+	fmt.Println("Detected original wallpaper as: ", bg)
 
 	c := make(chan os.Signal)
- 	signal.Notify(c, os.Interrupt)
- 	go func() {
-  		<-c
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
 		wallpaper.SetFromFile(bg)
 		os.Exit(0)
- 	}()
+	}()
 
 	tomlDat := string(dat)
 
@@ -228,16 +228,16 @@ func main() {
 		if discorderr != nil {
 			log.Fatal(discorderr)
 		}
-  	}
+	}
 
 	if saveLocally == true {
-  		fmt.Println("Local saving enabled")
-    		_, err := os.Stat(filepath.Join(folderPath, "download"))
+		fmt.Println("Local saving enabled")
+		_, err := os.Stat(filepath.Join(folderPath, "download"))
 		if os.IsNotExist(err) {
 			fmt.Println("Created download directory since it did not exist")
 			os.Mkdir(filepath.Join(folderPath, "download"), os.FileMode(0777))
-    		}
-  	}
+		}
+	}
 
 	fmt.Printf("Checking in every %d seconds...\r\n", freq)
 
@@ -257,8 +257,8 @@ func main() {
 		}
 	}
 
- 	goSetWallpaper(wallpaperUrl, saveLocally)
- 	fmt.Println("Set initial wallpaper: DONE")
+	goSetWallpaper(wallpaperUrl, saveLocally)
+	fmt.Println("Set initial wallpaper: DONE")
 
 	if strings.ToLower(mode) == "fit" {
 		err = wallpaper.SetMode(wallpaper.Fit)
@@ -274,17 +274,17 @@ func main() {
 		fmt.Printf("Polling... ")
 		userData := getWalltakerData(builtUrl)
 		wallpaperUrl := userData.PostURL.String
-        setterName := userData.SetBy.String
+		setterName := userData.SetBy.String
 
 		if wallpaperUrl != oldWallpaperUrl {
-            if setterName != "" {
-               fmt.Printf(setterName)
-               fmt.Printf(" set your wallpaper! Setting... ")
-            } else {
-              fmt.Printf("New wallpaper found! Setting... ")
-            }
-      		goSetWallpaper(wallpaperUrl, saveLocally)
-    		fmt.Printf("Set!")
+			if setterName != "" {
+				fmt.Printf(setterName)
+				fmt.Printf(" set your wallpaper! Setting... ")
+			} else {
+				fmt.Printf("New wallpaper found! Setting... ")
+			}
+			goSetWallpaper(wallpaperUrl, saveLocally)
+			fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
 		} else {
 			fmt.Printf("Nothing new yet.")
