@@ -1,4 +1,4 @@
-module github.com/oddpawsx/walltalker-go-client
+module github.com/oddpawsx/walltaker-go-client
 
 go 1.17
 
