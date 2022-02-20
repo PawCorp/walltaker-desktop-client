@@ -277,8 +277,14 @@ func main() {
 
 	setterName := userData.SetBy.String
 	setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
+	if setterName != "" {
+		fmt.Printf(setterName)
+		fmt.Printf(" set your initial wallpaper: Setting... ")
+	} else {
+		fmt.Printf("Anonymous set your initial wallpaper: Setting... ")
+	}
 	goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
-	fmt.Println("Set initial wallpaper: DONE")
+	fmt.Printf("Set!")
 
 	if strings.ToLower(mode) == "fit" {
 		err = wallpaper.SetMode(wallpaper.Fit)

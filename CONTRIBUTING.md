@@ -10,9 +10,9 @@ When contributing to this repository, please first discuss the change you wish t
 
 ## Important Resources
 
-- Bug? [Check for open issues about it first](https://github.com/oddpawsx/walltaker-go-client/issues?q=is%3Aissue+label%3Abug+is%3Aopen), and if none exist, [create a new bug report](https://github.com/oddpawsx/walltaker-go-client/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBug%5D+).
+- Bug? [Check for open issues about it first](https://github.com/PawCorp/walltaker-desktop-client/issues?q=is%3Aissue+label%3Abug+is%3Aopen), and if none exist, [create a new bug report](https://github.com/PawCorp/walltaker-desktop-client/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBug%5D+).
 
-- Enhancement/new feature? [Check for open issues about it first](https://github.com/oddpawsx/walltaker-go-client/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement+), and if none exist, [create a new feature request](https://github.com/oddpawsx/walltaker-go-client/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=%5BEnhancement%5D+).
+- Enhancement/new feature? [Check for open issues about it first](https://github.com/PawCorp/walltaker-desktop-client/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement+), and if none exist, [create a new feature request](https://github.com/PawCorp/walltaker-desktop-client/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=%5BEnhancement%5D+).
 
 ## Git Workflow: Branching Model
 
