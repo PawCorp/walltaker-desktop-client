@@ -115,9 +115,22 @@ func clearWindowsWallpaperCache() {
 func goSetWallpaper(url string, saveLocally bool, setterName string, setAt string, notify bool) {
 	clearWindowsWallpaperCache()
 	if runtime.GOOS != "windows" {
-		wallpaper.SetFromFile("") // free up for macOS
+		file, err := downloadImageForMac(url)
+		if err != nil {
+			fmt.Println("Ouch! Had a problem while downloading your wallpaper. This is a mac specific bug!")
+			fmt.Println("Full error: ", err)
+		}
+		wallpaper.SetFromFile(file)
+		defer cleanUpCacheForMac(file) // OK to delete after setting wallpaper, MacOS shows bg w/o file remaining there
+	} else {
+		err := wallpaper.SetFromURL(url)
+
+		if err != nil {
+			fmt.Println("Ouch! Had a problem while setting your wallpaper.")
+			fmt.Println("Full error: ", err)
+		}
 	}
-	err := wallpaper.SetFromURL(url)
+
 	if notify {
 		notifyStr := ""
 		if setterName == "" {
@@ -133,11 +146,6 @@ func goSetWallpaper(url string, saveLocally bool, setterName string, setAt strin
 
 	if saveLocally {
 		saveWallpaperLocally(url, setterName, setAt)
-	}
-
-	if err != nil {
-		fmt.Println("Ouch! Had a problem while setting your wallpaper.")
-		fmt.Println("Full error: ", err)
 	}
 	return
 }
