@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gen2brain/beeep"
 	"github.com/guregu/null"
 	"github.com/hugolgst/rich-go/client"
 	"github.com/kardianos/osext"
@@ -111,27 +112,32 @@ func clearWindowsWallpaperCache() {
 	}
 }
 
-func goSetWallpaper(url string, saveLocally bool, setterName string, setAt string) {
+func goSetWallpaper(url string, saveLocally bool, setterName string, setAt string, notify bool) {
 	clearWindowsWallpaperCache()
 	if runtime.GOOS != "windows" {
-		file, err := downloadImageForMac(url)
-		if err != nil {
-			fmt.Println("Ouch! Had a problem while downloading your wallpaper. This is a mac specific bug!")
-			fmt.Println("Full error: ", err)
+		wallpaper.SetFromFile("") // free up for macOS
+	}
+	err := wallpaper.SetFromURL(url)
+	if notify {
+		notifyStr := ""
+		if setterName == "" {
+			notifyStr = "Someone changed your wallpaper~"
+		} else {
+			notifyStr = fmt.Sprintf("%s changed your wallpaper~", setterName)
 		}
-		wallpaper.SetFromFile(file)
-		defer cleanUpCacheForMac(file) // OK to delete after setting wallpaper, MacOS shows bg w/o file remaining there
-	} else {
-		err := wallpaper.SetFromURL(url)
-
-		if err != nil {
-			fmt.Println("Ouch! Had a problem while setting your wallpaper.")
-			fmt.Println("Full error: ", err)
+		errNotify := beeep.Notify("Walltaker", notifyStr, "")
+		if errNotify != nil {
+			panic(errNotify)
 		}
 	}
 
 	if saveLocally {
 		saveWallpaperLocally(url, setterName, setAt)
+	}
+
+	if err != nil {
+		fmt.Println("Ouch! Had a problem while setting your wallpaper.")
+		fmt.Println("Full error: ", err)
 	}
 	return
 }
@@ -216,6 +222,7 @@ func main() {
 	mode := config.Get("Preferences.mode").(string)
 	saveLocally := config.Get("Preferences.saveLocally").(bool)
 	useDiscord := config.Get("Preferences.discordPresence").(bool)
+	notifications := config.Get("Preferences.notifications").(bool)
 
 	builtUrl := base + strconv.FormatInt(feed, 10) + ".json"
 
@@ -270,8 +277,14 @@ func main() {
 
 	setterName := userData.SetBy.String
 	setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
-	goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt)
-	fmt.Println("Set initial wallpaper: DONE")
+	if setterName != "" {
+		fmt.Printf(setterName)
+		fmt.Printf(" set your initial wallpaper: Setting... ")
+	} else {
+		fmt.Printf("Anonymous set your initial wallpaper: Setting... ")
+	}
+	goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
+	fmt.Printf("Set!")
 
 	if strings.ToLower(mode) == "fit" {
 		err = wallpaper.SetMode(wallpaper.Fit)
@@ -297,7 +310,7 @@ func main() {
 			} else {
 				fmt.Printf("New wallpaper found! Setting... ")
 			}
-			goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt)
+			goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
 			fmt.Printf("Set!")
 			oldWallpaperUrl = wallpaperUrl
 		} else {
