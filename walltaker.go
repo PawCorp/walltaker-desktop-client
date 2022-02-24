@@ -124,14 +124,14 @@ func goSetWallpaper(url string, saveLocally bool, setterName string, setAt strin
 	} else {
 		err := wallpaper.SetFromURL(url)
 
-		if saveLocally {
-			saveWallpaperLocally(url, setterName, setAt)
-		}
-
 		if err != nil {
 			fmt.Println("Ouch! Had a problem while setting your wallpaper.")
 			fmt.Println("Full error: ", err)
 		}
+	}
+
+	if saveLocally {
+		saveWallpaperLocally(url, setterName, setAt)
 	}
 	return
 }
