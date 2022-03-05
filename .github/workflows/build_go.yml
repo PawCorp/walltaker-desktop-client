@@ -1,0 +1,63 @@
+name: release-builds
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+
+    - name: Build
+      run: |
+        chmod +x "${GITHUB_WORKSPACE}/.github/build.sh"
+        "${GITHUB_WORKSPACE}/.github/build.sh"
+        
+    - name: Upload Windows amd64 Build Artifact
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: walltaker-windows
+        path: "./walltaker/*-windows-*"
+        if-no-files-found: error
+        retention-days: 7
+    - name: Upload Linux Build Artifacts
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: walltaker-linux
+        path: "./walltaker/*-linux-*"
+        if-no-files-found: error
+        retention-days: 7
+    - name: Upload macOS Build Artifact
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: walltaker-macOS
+        path: "./walltaker/*-darwin-*"
+        if-no-files-found: error
+        retention-days: 7
+
+    - name: Zip builds for release
+      run: |
+        CURRENT_DIRECTORY=${PWD##*/}
+        OUTPUT=${SOURCE_FILE:-$CURRENT_DIRECTORY}
+        echo ${GITHUB_REF##*/} > walltaker/VERSION.txt
+        sha256sum ./walltaker/*-* > sums.sha256.txt
+        cp walltaker.toml walltaker/
+        for f in walltaker/*-*; do
+          zip "$(echo ${f} | cut -d '/' -f 2).zip" "$f" ./walltaker/walltaker.toml ./walltaker/VERSION.txt
+        done
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          *.zip
+          sums.sha256.txt
