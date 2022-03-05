@@ -49,7 +49,7 @@ func getWalltakerData(url string) WalltakerData {
 		log.Fatal(err)
 	}
 
-	req.Header.Set("User-Agent", "Walltaker Go Client/1.3.0")
+	req.Header.Set("User-Agent", "Walltaker Go Client/1.3.0-"+runtime.GOOS)
 
 	res, getErr := webClient.Do(req)
 	if getErr != nil {
