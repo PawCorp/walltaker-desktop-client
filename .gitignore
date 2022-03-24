@@ -1,5 +1,7 @@
 # Walltaker files
 download/
+walltaker
+walltaker.lock
 
 # vscode
 .vscode
