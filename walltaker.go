@@ -162,6 +162,12 @@ func saveWallpaperLocally(url string, setterName string, setAt string) {
 	}
 
 	folderPath, err := osext.ExecutableFolder()
+	_, err = os.Stat(filepath.Join(folderPath, "download"))
+	if os.IsNotExist(err) {
+		fmt.Println("Created download directory since it did not exist")
+		os.Mkdir(filepath.Join(folderPath, "download"), os.FileMode(0777))
+	}
+
 	filename := filepath.Join(folderPath, "download", "walltaker_"+setterName+"_"+setAt+"_"+path.Base(url))
 	_, err = os.Stat(filename)
 
