@@ -16,11 +16,17 @@ import (
 	"strings"
 	"time"
 
+	"walltaker/icon"
+
 	"github.com/gen2brain/beeep"
+	"github.com/getlantern/systray"
 	"github.com/guregu/null"
 	"github.com/hugolgst/rich-go/client"
+	"github.com/juju/fslock"
 	"github.com/kardianos/osext"
+	"github.com/martinlindhe/inputbox"
 	"github.com/pelletier/go-toml"
+	"github.com/pkg/browser"
 	"github.com/reujab/wallpaper"
 )
 
@@ -49,7 +55,7 @@ func getWalltakerData(url string) WalltakerData {
 		log.Fatal(err)
 	}
 
-	req.Header.Set("User-Agent", "Walltaker Go Client/1.3.0-"+runtime.GOOS)
+	req.Header.Set("User-Agent", "Walltaker Go Client/2.0.0-"+runtime.GOOS)
 
 	res, getErr := webClient.Do(req)
 	if getErr != nil {
@@ -181,7 +187,39 @@ func saveWallpaperLocally(url string, setterName string, setAt string) {
 	return
 }
 
+func openMyWtWebAppLink(base string, feed int64) {
+	browser.OpenURL(fmt.Sprintf("%s%d", base, feed))
+}
+
 func main() {
+	// use file lock to determine if walltaker is already running
+	lock := fslock.New("./walltaker.lock")
+	err := lock.TryLock()
+	if err != nil {
+		fmt.Println(err.Error())
+		errNotify := beeep.Notify("Walltaker", "Note: Walltaker is already running!", "")
+		if errNotify != nil {
+			panic(errNotify)
+		}
+		return
+	}
+
+	bg, err := wallpaper.Get()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Detected original wallpaper as: ", bg)
+
+	defer lock.Unlock()
+	onExit := func() {
+		fmt.Println("Reverting wallpaper to: ", bg)
+		wallpaper.SetFromFile(bg)
+	}
+
+	systray.Run(onReady, onExit)
+}
+
+func onReady() {
 	// fmt.Println("WALLTAKER CLIENT")
 	fmt.Println(`
 	██╗    ██╗ █████╗ ██╗     ██╗  ████████╗ █████╗ ██╗  ██╗███████╗██████╗
@@ -191,38 +229,40 @@ func main() {
 	╚███╔███╔╝██║  ██║███████╗███████╗██║   ██║  ██║██║  ██╗███████╗██║  ██║
 	 ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
-	 	v1.3.0. Go client by @OddPawsX
+	 	v2.0.0. Go client by @OddPawsX
 	 		 	Walltaker by Gray over at joi.how <3
 
 	(You can minimize this window; it will periodically check in for new wallpapers)
 	`)
+
+	start := time.Now()
 
 	folderPath, err := osext.ExecutableFolder()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Loaded config from " + filepath.Join(folderPath, "walltaker.toml"))
-
 	dat, err := os.ReadFile(filepath.Join(folderPath, "walltaker.toml"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	bg, err := wallpaper.Get()
-	fmt.Println("Detected original wallpaper as: ", bg)
-
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		<-c
-		wallpaper.SetFromFile(bg)
-		os.Exit(0)
-	}()
+	fmt.Println("Loaded config from " + filepath.Join(folderPath, "walltaker.toml"))
 
 	tomlDat := string(dat)
 
 	config, _ := toml.Load(tomlDat)
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Ensure your .toml file is up to date!")
+			errNotify := beeep.Notify("Walltaker", "Could not launch Walltaker! Ensure your .toml file is up to date.", "")
+			if errNotify != nil {
+				panic(errNotify)
+			}
+			systray.Quit()
+		}
+	}()
 
 	base := config.Get("Base.base").(string)
 	feed := config.Get("Feed.feed").(int64)
@@ -234,16 +274,17 @@ func main() {
 
 	builtUrl := base + strconv.FormatInt(feed, 10) + ".json"
 
+	timeNow := time.Now() // start time for discord purposes
 	if useDiscord == true {
 		discorderr := client.Login("942796233033019504")
 		if discorderr != nil {
 			log.Fatal(discorderr)
 		}
 
-		timeNow := time.Now()
 		discorderr = client.SetActivity(client.Activity{
-			State:      "Set my wallpaper~",
-			Details:    strings.Replace(builtUrl, ".json", "", -1),
+			State: "Set my wallpaper~",
+			// Details:    strings.Replace(builtUrl, ".json", "", -1),
+			Details:    fmt.Sprintf("https://wt.pawcorp.org/%d", feed),
 			LargeImage: "eggplant",
 			LargeText:  "Powered by joi.how",
 			Timestamps: &client.Timestamps{
@@ -265,65 +306,211 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Checking in every %d seconds...\r\n", freq)
+	systray.SetTemplateIcon(icon.Data, icon.Data)
+	systray.SetTitle("Walltaker")
+	systray.SetTooltip("Walltaker")
+	menuAppTimer := systray.AddMenuItem("Elapsed: 0", "Time since Walltaker started")
+	menuAppTimer.SetIcon(icon.Data)
+	menuAppTimer.Disabled()
 
-	userData := getWalltakerData(builtUrl)
-
-	wallpaperUrl, noDataErr := getWallpaperUrlFromData(userData)
-	ready := noDataErr == nil
-	for ready == false {
-		if noDataErr != nil {
-			// log.Fatal(noDataErr)
-			fmt.Printf("No data for ID %d, trying again in %d seconds...\r\n", feed, freq)
-			time.Sleep(time.Second * time.Duration(freq))
-			userData = getWalltakerData(builtUrl)
-			wallpaperUrl, noDataErr = getWallpaperUrlFromData(userData)
-		} else {
-			ready = true
+	// timer loop
+	go func() {
+		for range time.Tick(time.Second) {
+			elapsed := time.Since(start)
+			menuAppTimer.SetTitle(fmt.Sprintf("Elapsed: %s", elapsed.Round(time.Second)))
 		}
-	}
+	}()
 
-	setterName := userData.SetBy.String
-	setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
-	if setterName != "" {
-		fmt.Printf(setterName)
-		fmt.Printf(" set your initial wallpaper: Setting... ")
-	} else {
-		fmt.Printf("Anonymous set your initial wallpaper: Setting... ")
-	}
-	goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
-	fmt.Printf("Set!")
+	// wallpaper loop
+	go func() {
+		bg, err := wallpaper.Get()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Detected original wallpaper as: ", bg)
 
-	if strings.ToLower(mode) == "fit" {
-		err = wallpaper.SetMode(wallpaper.Fit)
-	} else if strings.ToLower(mode) == "crop" {
-		err = wallpaper.SetMode(wallpaper.Crop)
-	} else {
-		err = wallpaper.SetMode(wallpaper.Crop)
-	}
+		c := make(chan os.Signal)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			<-c
+			wallpaper.SetFromFile(bg)
+			os.Exit(0)
+		}()
 
-	oldWallpaperUrl := wallpaperUrl
+		fmt.Printf("Checking in every %d seconds...\r\n", freq)
 
-	for range time.Tick(time.Second * time.Duration(freq)) {
-		fmt.Printf("Polling... ")
 		userData := getWalltakerData(builtUrl)
-		wallpaperUrl := userData.PostURL.String
+
+		wallpaperUrl, noDataErr := getWallpaperUrlFromData(userData)
+		ready := noDataErr == nil
+		for ready == false {
+			if noDataErr != nil {
+				// log.Fatal(noDataErr)
+				fmt.Printf("No data for ID %d, trying again in %d seconds...\r\n", feed, freq)
+				time.Sleep(time.Second * time.Duration(freq))
+				builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
+				userData = getWalltakerData(builtUrl)
+				wallpaperUrl, noDataErr = getWallpaperUrlFromData(userData)
+			} else {
+				ready = true
+			}
+		}
+
 		setterName := userData.SetBy.String
 		setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
-
-		if wallpaperUrl != oldWallpaperUrl {
-			if setterName != "" {
-				fmt.Printf(setterName)
-				fmt.Printf(" set your wallpaper! Setting... ")
-			} else {
-				fmt.Printf("New wallpaper found! Setting... ")
-			}
-			goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
-			fmt.Printf("Set!")
-			oldWallpaperUrl = wallpaperUrl
+		if setterName != "" {
+			fmt.Printf(setterName)
+			fmt.Printf(" set your initial wallpaper: Setting... ")
 		} else {
-			fmt.Printf("Nothing new yet.")
+			fmt.Printf("Anonymous set your initial wallpaper: Setting... ")
 		}
-		fmt.Printf("\r\n")
-	}
+		goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
+		fmt.Printf("Set!")
+
+		if strings.ToLower(mode) == "fit" {
+			err = wallpaper.SetMode(wallpaper.Fit)
+		} else if strings.ToLower(mode) == "crop" {
+			err = wallpaper.SetMode(wallpaper.Crop)
+		} else {
+			err = wallpaper.SetMode(wallpaper.Crop)
+		}
+
+		oldWallpaperUrl := wallpaperUrl
+
+		for range time.Tick(time.Second * time.Duration(freq)) {
+			fmt.Printf("Polling... ")
+			builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
+			userData := getWalltakerData(builtUrl)
+			wallpaperUrl := userData.PostURL.String
+			setterName := userData.SetBy.String
+			setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
+
+			if wallpaperUrl != oldWallpaperUrl {
+				if setterName != "" {
+					fmt.Printf(setterName)
+					fmt.Printf(" set your wallpaper! Setting... ")
+				} else {
+					fmt.Printf("New wallpaper found! Setting... ")
+				}
+				goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
+				fmt.Printf("Set!")
+				oldWallpaperUrl = wallpaperUrl
+			} else {
+				fmt.Printf("Nothing new yet.")
+			}
+			fmt.Printf("\r\n")
+		}
+	}()
+
+	go func() {
+		menuOpenMyWtWebAppLink := systray.AddMenuItem(fmt.Sprintf("Open my Walltaker Page (%d)", feed), "Opens your link in a web browser")
+		systray.AddSeparator()
+		menuSaveImages := systray.AddMenuItemCheckbox("Save Images", "Check to save images to disk", saveLocally)
+		menuDiscordPresence := systray.AddMenuItemCheckbox("Discord Presence", "Let your friends know what you're up to~", useDiscord)
+		menuNotifications := systray.AddMenuItemCheckbox("Notifications", "Get a desktop notification for new wallpapers, in case you've got something maximized", notifications)
+		menuSetID := systray.AddMenuItem("Set ID", "Change which IDs wallpaper feed to use")
+
+		systray.AddSeparator()
+		mQuit := systray.AddMenuItem("QUIT", "Quit the whole app")
+
+		systray.AddSeparator()
+
+		for {
+			select {
+			case <-menuOpenMyWtWebAppLink.ClickedCh:
+				openMyWtWebAppLink(base, feed)
+			case <-menuSetID.ClickedCh:
+				getInputText := "Enter a Walltaker ID to poll"
+				for {
+					var i int
+					got, ok := inputbox.InputBox("Change active Walltaker ID", getInputText, "0")
+					if ok {
+						fmt.Println("you entered:", got)
+					} else {
+						fmt.Println("No value entered")
+					}
+					if got == "" {
+						fmt.Println(fmt.Sprintf("No value entered; keeping old value of %d", feed))
+						break
+					}
+					i, err = strconv.Atoi(got)
+					if err != nil {
+						fmt.Println("Enter a valid number")
+						getInputText = "Enter a Walltaker ID to poll (you entered something that was not a number last time; try again)"
+					} else {
+						fmt.Println("Got: " + strconv.Itoa(i))
+						feed = int64(i)
+						if useDiscord == true {
+							discorderr := client.SetActivity(client.Activity{
+								State: "Set my wallpaper~",
+								// Details:    base + strconv.FormatInt(feed, 10),
+								Details:    fmt.Sprintf("https://wt.pawcorp.org/%d", feed),
+								LargeImage: "eggplant",
+								LargeText:  "Powered by joi.how",
+								Timestamps: &client.Timestamps{
+									Start: &timeNow,
+								},
+							})
+
+							if discorderr != nil {
+								log.Fatal(discorderr)
+							}
+						}
+						menuOpenMyWtWebAppLink.SetTitle(fmt.Sprintf("Open my Walltaker Page (%d)", feed))
+						fmt.Println("Set new Walltaker poll ID")
+						break
+					}
+				}
+			case <-menuSaveImages.ClickedCh:
+				if menuSaveImages.Checked() {
+					menuSaveImages.Uncheck()
+				} else {
+					menuSaveImages.Check()
+				}
+				saveLocally = !saveLocally
+				fmt.Println(fmt.Sprintf("Changed saveLocally to %t", saveLocally))
+			case <-menuDiscordPresence.ClickedCh:
+				if menuDiscordPresence.Checked() {
+					menuDiscordPresence.Uncheck()
+					client.Logout()
+					fmt.Println("Stopped Discord Presence")
+				} else {
+					menuDiscordPresence.Check()
+					discorderr := client.Login("942796233033019504")
+					if discorderr != nil {
+						log.Fatal(discorderr)
+					}
+
+					discorderr = client.SetActivity(client.Activity{
+						State: "Set my wallpaper~",
+						// Details:    strings.Replace(builtUrl, ".json", "", -1),
+						Details:    fmt.Sprintf("https://wt.pawcorp.org/%d", feed),
+						LargeImage: "eggplant",
+						LargeText:  "Powered by joi.how",
+						Timestamps: &client.Timestamps{
+							Start: &timeNow,
+						},
+					})
+
+					if discorderr != nil {
+						log.Fatal(discorderr)
+					}
+					fmt.Println("Started Discord Presence")
+				}
+				useDiscord = !useDiscord
+			case <-menuNotifications.ClickedCh:
+				if menuNotifications.Checked() {
+					menuNotifications.Uncheck()
+				} else {
+					menuNotifications.Check()
+				}
+				notifications = !notifications
+				fmt.Println(fmt.Sprintf("notifications set to %t", notifications))
+			case <-mQuit.ClickedCh:
+				systray.Quit()
+				fmt.Println("Quit now...")
+				return
+			}
+		}
+	}()
 }
