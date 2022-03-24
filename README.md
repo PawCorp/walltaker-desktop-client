@@ -8,5 +8,13 @@ Desktop client for Walltaker powered by golang
 - ???
 - Profit
 
+### Linux
+
+Tested on Ubuntu 20.04; the following pre-requisite packages must be installed to run Walltaker 2.0.0+.
+
+```sh
+$ sudo apt install zenity libayatana-appindicator3-dev
+```
+
 ## Thanks
 Special thanks to Gray over at joi.how for putting together the Walltaker project!
