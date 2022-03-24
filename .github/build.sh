@@ -13,8 +13,10 @@ for PLATFORM in $PLATFORMS; do
     GOOS=${PLATFORM%/*}
     GOARCH=${PLATFORM#*/}
     BIN_FILENAME="${OUTPUT}-${GOOS}-${GOARCH}"
+    WINFLAG=""
     if [[ "${GOOS}" == "windows" ]]; then BIN_FILENAME="${BIN_FILENAME}.exe"; fi
-    CMD="GOOS=${GOOS} GOARCH=${GOARCH} go build -o walltaker/${BIN_FILENAME} $@"
+    if [[ "${GOOS}" == "windows" ]]; then WINFLAG=" -ldflags -H=windowsgui"; fi
+    CMD="GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build${WINFLAG} -o walltaker/${BIN_FILENAME} $@"
     echo "${CMD}"
     eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
 done
