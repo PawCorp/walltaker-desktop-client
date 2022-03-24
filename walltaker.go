@@ -318,6 +318,8 @@ func onReady() {
 	menuAppTimer := systray.AddMenuItem("Elapsed: 0", "Time since Walltaker started")
 	menuAppTimer.SetIcon(icon.Data)
 	menuAppTimer.Disabled()
+	menuAppSetBy := systray.AddMenuItem("-", "Who sent your most recent wallpaper~")
+	menuAppSetBy.Disabled()
 
 	// timer loop
 	go func() {
@@ -367,10 +369,13 @@ func onReady() {
 		if setterName != "" {
 			fmt.Printf(setterName)
 			fmt.Printf(" set your initial wallpaper: Setting... ")
+			menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", setterName))
 		} else {
 			fmt.Printf("Anonymous set your initial wallpaper: Setting... ")
+			menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", "Anonymous"))
 		}
 		goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
+
 		fmt.Printf("Set!")
 
 		if strings.ToLower(mode) == "fit" {
@@ -395,8 +400,10 @@ func onReady() {
 				if setterName != "" {
 					fmt.Printf(setterName)
 					fmt.Printf(" set your wallpaper! Setting... ")
+					menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", setterName))
 				} else {
 					fmt.Printf("New wallpaper found! Setting... ")
+					menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", "Anonymous"))
 				}
 				goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
 				fmt.Printf("Set!")
