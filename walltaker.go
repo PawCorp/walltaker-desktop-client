@@ -203,6 +203,16 @@ func openWtSetterPage(setterName string) {
 	}
 }
 
+func openE621(postUrl string) {
+	// extract md5 from post url
+	if postUrl != "" {
+		md5str := postUrl[strings.LastIndex(postUrl, "/")+1:]
+		md5str = strings.Split(md5str, ".")[0]
+		fmt.Println(md5str)
+		browser.OpenURL(fmt.Sprintf("https://e621.net/posts?tags=md5%%3A%s", md5str))
+	}
+}
+
 func main() {
 	// use file lock to determine if walltaker is already running
 	lockPath := "./walltaker.lock"
@@ -340,8 +350,10 @@ func onReady() {
 	menuAppTimer.SetIcon(icon.Data)
 	menuAppTimer.Disabled()
 	menuAppSetBy := systray.AddMenuItem("-", "Who sent your most recent wallpaper~")
+	menuE621 := systray.AddMenuItem("Open e621", "Open image on e621")
 	// menuAppSetBy.Disabled()
 	setterName := ""
+	oldWallpaperUrl := ""
 
 	// timer loop
 	go func() {
@@ -408,7 +420,7 @@ func onReady() {
 			err = wallpaper.SetMode(wallpaper.Crop)
 		}
 
-		oldWallpaperUrl := wallpaperUrl
+		oldWallpaperUrl = wallpaperUrl
 
 		for range time.Tick(time.Second * time.Duration(freq)) {
 			fmt.Printf("Polling... ")
@@ -453,6 +465,8 @@ func onReady() {
 
 		for {
 			select {
+			case <-menuE621.ClickedCh:
+				openE621(oldWallpaperUrl)
 			case <-menuAppSetBy.ClickedCh:
 				openWtSetterPage(setterName)
 			case <-menuOpenMyWtWebAppLink.ClickedCh:
