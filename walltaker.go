@@ -197,6 +197,12 @@ func openMyWtWebAppLink(base string, feed int64) {
 	browser.OpenURL(fmt.Sprintf("%s%d", base, feed))
 }
 
+func openWtSetterPage(setterName string) {
+	if setterName != "" {
+		browser.OpenURL(fmt.Sprintf("https://walltaker.joi.how/users/%s", setterName))
+	}
+}
+
 func main() {
 	// use file lock to determine if walltaker is already running
 	lockPath := "./walltaker.lock"
@@ -334,7 +340,8 @@ func onReady() {
 	menuAppTimer.SetIcon(icon.Data)
 	menuAppTimer.Disabled()
 	menuAppSetBy := systray.AddMenuItem("-", "Who sent your most recent wallpaper~")
-	menuAppSetBy.Disabled()
+	// menuAppSetBy.Disabled()
+	setterName := ""
 
 	// timer loop
 	go func() {
@@ -379,7 +386,7 @@ func onReady() {
 			}
 		}
 
-		setterName := userData.SetBy.String
+		setterName = userData.SetBy.String
 		setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
 		if setterName != "" {
 			fmt.Printf(setterName)
@@ -408,7 +415,7 @@ func onReady() {
 			builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
 			userData := getWalltakerData(builtUrl)
 			wallpaperUrl := userData.PostURL.String
-			setterName := userData.SetBy.String
+			setterName = userData.SetBy.String
 			setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
 
 			if wallpaperUrl != oldWallpaperUrl {
@@ -446,6 +453,8 @@ func onReady() {
 
 		for {
 			select {
+			case <-menuAppSetBy.ClickedCh:
+				openWtSetterPage(setterName)
 			case <-menuOpenMyWtWebAppLink.ClickedCh:
 				openMyWtWebAppLink(base, feed)
 			case <-menuSetID.ClickedCh:
