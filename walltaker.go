@@ -199,7 +199,11 @@ func openMyWtWebAppLink(base string, feed int64) {
 
 func main() {
 	// use file lock to determine if walltaker is already running
-	lock := fslock.New("./walltaker.lock")
+	lockPath := "./walltaker.lock"
+	if runtime.GOOS == "darwin" {
+		lockPath = "/tmp/walltaker.lock"
+	}
+	lock := fslock.New(lockPath)
 	err := lock.TryLock()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -270,6 +274,9 @@ func onReady() {
 		}
 	}()
 
+	// store crop bool
+	crop := true // true before read in by config
+
 	base := config.Get("Base.base").(string)
 	feed := config.Get("Feed.feed").(int64)
 	freq := config.Get("Preferences.interval").(int64)
@@ -277,6 +284,14 @@ func onReady() {
 	saveLocally := config.Get("Preferences.saveLocally").(bool)
 	useDiscord := config.Get("Preferences.discordPresence").(bool)
 	notifications := config.Get("Preferences.notifications").(bool)
+
+	if strings.ToLower(mode) == "fit" {
+		crop = false
+	} else if strings.ToLower(mode) == "crop" {
+		crop = true
+	} else {
+		crop = true
+	}
 
 	builtUrl := base + strconv.FormatInt(feed, 10) + ".json"
 
@@ -378,9 +393,9 @@ func onReady() {
 
 		fmt.Printf("Set!")
 
-		if strings.ToLower(mode) == "fit" {
+		if !crop {
 			err = wallpaper.SetMode(wallpaper.Fit)
-		} else if strings.ToLower(mode) == "crop" {
+		} else if crop {
 			err = wallpaper.SetMode(wallpaper.Crop)
 		} else {
 			err = wallpaper.SetMode(wallpaper.Crop)
@@ -418,6 +433,7 @@ func onReady() {
 	go func() {
 		menuOpenMyWtWebAppLink := systray.AddMenuItem(fmt.Sprintf("Open my Walltaker Page (%d)", feed), "Opens your link in a web browser")
 		systray.AddSeparator()
+		menuCropImages := systray.AddMenuItemCheckbox("Crop", "Crop images to fill the whole screen", crop)
 		menuSaveImages := systray.AddMenuItemCheckbox("Save Images", "Check to save images to disk", saveLocally)
 		menuDiscordPresence := systray.AddMenuItemCheckbox("Discord Presence", "Let your friends know what you're up to~", useDiscord)
 		menuNotifications := systray.AddMenuItemCheckbox("Notifications", "Get a desktop notification for new wallpapers, in case you've got something maximized", notifications)
@@ -474,6 +490,15 @@ func onReady() {
 						break
 					}
 				}
+			case <-menuCropImages.ClickedCh:
+				if menuCropImages.Checked() {
+					menuCropImages.Uncheck()
+					err = wallpaper.SetMode(wallpaper.Fit)
+				} else {
+					menuCropImages.Check()
+					err = wallpaper.SetMode(wallpaper.Crop)
+				}
+				crop = !crop
 			case <-menuSaveImages.ClickedCh:
 				if menuSaveImages.Checked() {
 					menuSaveImages.Uncheck()
