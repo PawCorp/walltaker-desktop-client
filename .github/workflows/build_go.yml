@@ -6,8 +6,47 @@ on:
       - "v*.*.*"
 
 jobs:
+  build_windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
 
-  build:
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.18
+    - name: Build for Windows
+      # run: $env:GO111MODULE='on'; go build -ldflags "-H=windowsgui" -o walltaker-windows-amd64.exe
+      env: 
+          GO111MODULE: on
+      run: |
+        mkdir walltaker
+        go build -ldflags "-H=windowsgui" -o ./walltaker/walltaker-windows-amd64.exe
+      shell: powershell
+
+    - name: Upload Windows amd64 Build Artifact
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: walltaker-windows
+        path: "./walltaker/*-windows-*"
+        if-no-files-found: error
+        retention-days: 7
+    - name: Zip builds for release
+      run: |
+        echo ("$GITHUB_REF" -split '/')[-1] > walltaker/VERSION.txt
+        (Get-FileHash -Algorithm SHA256 '.\*-windows-*').Hash > windows.sums.sha256.txt
+        cp walltaker.toml walltaker/
+        Compress-Archive -Path .\walltaker -DestinationPath .\walltaker-windows-amd64.zip
+      shell: powershell
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          *.zip
+          windows.sums.sha256.txt
+  
+  build_linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -19,16 +58,9 @@ jobs:
 
     - name: Build
       run: |
-        chmod +x "${GITHUB_WORKSPACE}/.github/build.sh"
-        "${GITHUB_WORKSPACE}/.github/build.sh"
+        chmod +x "${GITHUB_WORKSPACE}/.github/build_linux.sh"
+        "${GITHUB_WORKSPACE}/.github/build_linux.sh"
         
-    - name: Upload Windows amd64 Build Artifact
-      uses: actions/upload-artifact@v3.0.0
-      with:
-        name: walltaker-windows
-        path: "./walltaker/*-windows-*"
-        if-no-files-found: error
-        retention-days: 7
     - name: Upload Linux Build Artifacts
       uses: actions/upload-artifact@v3.0.0
       with:
@@ -36,20 +68,12 @@ jobs:
         path: "./walltaker/*-linux-*"
         if-no-files-found: error
         retention-days: 7
-    - name: Upload macOS Build Artifact
-      uses: actions/upload-artifact@v3.0.0
-      with:
-        name: walltaker-macOS
-        path: "./walltaker/*-darwin-*"
-        if-no-files-found: error
-        retention-days: 7
-
     - name: Zip builds for release
       run: |
         CURRENT_DIRECTORY=${PWD##*/}
         OUTPUT=${SOURCE_FILE:-$CURRENT_DIRECTORY}
         echo ${GITHUB_REF##*/} > walltaker/VERSION.txt
-        sha256sum ./walltaker/*-* > sums.sha256.txt
+        sha256sum ./walltaker/*-* > linux.sums.sha256.txt
         cp walltaker.toml walltaker/
         for f in walltaker/*-*; do
           zip "$(echo ${f} | cut -d '/' -f 2).zip" "$f" ./walltaker/walltaker.toml ./walltaker/VERSION.txt
@@ -60,4 +84,83 @@ jobs:
       with:
         files: |
           *.zip
-          sums.sha256.txt
+          linux.sums.sha256.txt
+
+  build_macos:
+    # runs-on: macos-latest
+    runs-on: macos-10.15
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.18
+
+    - name: Build
+      run: |
+        chmod +x "${GITHUB_WORKSPACE}/.github/build_macos.sh"
+        "${GITHUB_WORKSPACE}/.github/build_macos.sh"
+        
+    - name: Upload macOS Build Artifacts
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: walltaker-macos
+        path: "./walltaker/*-darwin-*"
+        if-no-files-found: error
+        retention-days: 7
+    - name: Zip builds for release
+      run: |
+        CURRENT_DIRECTORY=${PWD##*/}
+        OUTPUT=${SOURCE_FILE:-$CURRENT_DIRECTORY}
+        mkdir MyIcon.iconset
+        sips -z 16 16     icon/wt.png --out MyIcon.iconset/icon_16x16.png
+        sips -z 32 32     icon/wt.png --out MyIcon.iconset/icon_16x16@2x.png
+        sips -z 32 32     icon/wt.png --out MyIcon.iconset/icon_32x32.png
+        sips -z 64 64     icon/wt.png --out MyIcon.iconset/icon_32x32@2x.png
+        sips -z 128 128   icon/wt.png --out MyIcon.iconset/icon_128x128.png
+        sips -z 256 256   icon/wt.png --out MyIcon.iconset/icon_128x128@2x.png
+        sips -z 256 256   icon/wt.png --out MyIcon.iconset/icon_256x256.png
+        sips -z 512 512   icon/wt.png --out MyIcon.iconset/icon_256x256@2x.png
+        sips -z 512 512   icon/wt.png --out MyIcon.iconset/icon_512x512.png
+        cp icon/wt.png MyIcon.iconset/icon_512x512@2x.png
+        iconutil -c icns MyIcon.iconset
+        rm -R MyIcon.iconset
+        mkdir Walltaker.app
+        mkdir Walltaker.app/Contents
+        mkdir Walltaker.app/Contents/MacOS
+        mkdir Walltaker.app/Contents/Resources
+        cat <<EOT >> Walltaker.app/Contents/Info.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>CFBundleExecutable</key>
+          <string>walltaker-darwin-amd64</string>
+          <key>CFBundleIconFile</key>
+          <string>icon.icns</string>
+          <key>CFBundleIdentifier</key>
+          <string>org.pawcorp.walltaker</string>
+          <key>NSHighResolutionCapable</key>
+          <true/>
+          <key>LSUIElement</key>
+          <true/>
+        </dict>
+        </plist>
+        EOT
+        cp ./walltaker/*-darwin-* Walltaker.app/Contents/MacOS
+        cp walltaker.toml Walltaker.app/Contents/MacOS
+        cp MyIcon.icns Walltaker.app/Contents/Resources/icon.icns
+        echo ${GITHUB_REF##*/} > walltaker/VERSION.txt
+        shasum -a 256 ./walltaker/*-* > macos.sums.sha256.txt
+        cp walltaker.toml walltaker/
+        for f in walltaker/*-*; do
+          zip -r "$(echo ${f} | cut -d '/' -f 2).zip" "$f" ./walltaker/walltaker.toml ./walltaker/VERSION.txt Walltaker.app
+        done
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          *.zip
+          macos.sums.sha256.txt

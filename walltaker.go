@@ -199,7 +199,11 @@ func openMyWtWebAppLink(base string, feed int64) {
 
 func main() {
 	// use file lock to determine if walltaker is already running
-	lock := fslock.New("./walltaker.lock")
+	lockPath := "./walltaker.lock"
+	if runtime.GOOS == "darwin" {
+		lockPath = "/tmp/walltaker.lock"
+	}
+	lock := fslock.New(lockPath)
 	err := lock.TryLock()
 	if err != nil {
 		fmt.Println(err.Error())
