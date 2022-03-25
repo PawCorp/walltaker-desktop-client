@@ -1,7 +1,7 @@
 # walltaker-go-client
 Desktop client for Walltaker powered by golang
 
-v2.0.0+ - Now a System Tray App!
+v2.0.0+ - Now a System Tray App! 
 
 ## Usage
 - Download the release for your OS. Edit `walltaker.toml` to use the ID associated with your link.
