@@ -123,8 +123,8 @@ func goSetWallpaper(url string, saveLocally bool, setterName string, setAt strin
 	if runtime.GOOS != "windows" {
 		file, err := downloadImageForMac(url)
 		if err != nil {
-			fmt.Println("Ouch! Had a problem while downloading your wallpaper. This is a mac specific bug!")
-			fmt.Println("Full error: ", err)
+			log.Println("Ouch! Had a problem while downloading your wallpaper. This is a mac specific bug!")
+			log.Println("Full error: ", err)
 		}
 		wallpaper.SetFromFile(file)
 		defer cleanUpCacheForMac(file) // OK to delete after setting wallpaper, MacOS shows bg w/o file remaining there
@@ -132,8 +132,8 @@ func goSetWallpaper(url string, saveLocally bool, setterName string, setAt strin
 		err := wallpaper.SetFromURL(url)
 
 		if err != nil {
-			fmt.Println("Ouch! Had a problem while setting your wallpaper.")
-			fmt.Println("Full error: ", err)
+			log.Println("Ouch! Had a problem while setting your wallpaper.")
+			log.Println("Full error: ", err)
 		}
 	}
 
@@ -164,7 +164,7 @@ func saveWallpaperLocally(url string, setterName string, setAt string) {
 	folderPath, err := osext.ExecutableFolder()
 	_, err = os.Stat(filepath.Join(folderPath, "download"))
 	if os.IsNotExist(err) {
-		fmt.Println("Created download directory since it did not exist")
+		log.Println("Created download directory since it did not exist")
 		os.Mkdir(filepath.Join(folderPath, "download"), os.FileMode(0777))
 	}
 
@@ -173,7 +173,7 @@ func saveWallpaperLocally(url string, setterName string, setAt string) {
 
 	if os.IsNotExist(err) {
 
-		//fmt.Printf("Downloading", url, " to ", filename)
+		//log.Printf("Downloading", url, " to ", filename)
 		response, err := http.Get(url)
 		if err != nil {
 			return
@@ -188,7 +188,7 @@ func saveWallpaperLocally(url string, setterName string, setAt string) {
 		defer file.Close()
 		_, err = io.Copy(file, response.Body)
 	} else {
-		fmt.Printf("Wallpaper file already exists, skipping! ")
+		log.Printf("Wallpaper file already exists, skipping! ")
 	}
 	return
 }
@@ -208,7 +208,7 @@ func openE621(postUrl string) {
 	if postUrl != "" {
 		md5str := postUrl[strings.LastIndex(postUrl, "/")+1:]
 		md5str = strings.Split(md5str, ".")[0]
-		fmt.Println(md5str)
+		log.Println(md5str)
 		browser.OpenURL(fmt.Sprintf("https://e621.net/posts?tags=md5%%3A%s", md5str))
 	}
 }
@@ -225,7 +225,7 @@ func main() {
 	lock := fslock.New(lockPath)
 	err := lock.TryLock()
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		errNotify := beeep.Notify("Walltaker", "Note: Walltaker is already running!", "")
 		if errNotify != nil {
 			panic(errNotify)
@@ -237,11 +237,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Detected original wallpaper as: ", bg)
+	log.Println("Detected original wallpaper as: ", bg)
 
 	defer lock.Unlock()
 	onExit := func() {
-		fmt.Println("Reverting wallpaper to: ", bg)
+		log.Println("Reverting wallpaper to: ", bg)
 		wallpaper.SetFromFile(bg)
 	}
 
@@ -249,8 +249,8 @@ func main() {
 }
 
 func onReady() {
-	// fmt.Println("WALLTAKER CLIENT")
-	fmt.Println(`
+	// log.Println("WALLTAKER CLIENT")
+	log.Println(`
 	██╗    ██╗ █████╗ ██╗     ██╗  ████████╗ █████╗ ██╗  ██╗███████╗██████╗
 	██║    ██║██╔══██╗██║     ██║  ╚══██╔══╝██╔══██╗██║ ██╔╝██╔════╝██╔══██╗
 	██║ █╗ ██║███████║██║     ██║     ██║   ███████║█████╔╝ █████╗  ██████╔╝
@@ -276,7 +276,7 @@ func onReady() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Loaded config from " + filepath.Join(folderPath, "walltaker.toml"))
+	log.Println("Loaded config from " + filepath.Join(folderPath, "walltaker.toml"))
 
 	tomlDat := string(dat)
 
@@ -338,10 +338,10 @@ func onReady() {
 	}
 
 	if saveLocally == true {
-		fmt.Println("Local saving enabled")
+		log.Println("Local saving enabled")
 		_, err := os.Stat(filepath.Join(folderPath, "download"))
 		if os.IsNotExist(err) {
-			fmt.Println("Created download directory since it did not exist")
+			log.Println("Created download directory since it did not exist")
 			os.Mkdir(filepath.Join(folderPath, "download"), os.FileMode(0777))
 		}
 	}
@@ -372,7 +372,7 @@ func onReady() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("Detected original wallpaper as: ", bg)
+		log.Println("Detected original wallpaper as: ", bg)
 
 		c := make(chan os.Signal)
 		signal.Notify(c, os.Interrupt)
@@ -382,7 +382,7 @@ func onReady() {
 			os.Exit(0)
 		}()
 
-		fmt.Printf("Checking in every %d seconds...\r\n", freq)
+		log.Printf("Checking in every %d seconds...\r\n", freq)
 
 		userData := getWalltakerData(builtUrl)
 
@@ -391,7 +391,7 @@ func onReady() {
 		for ready == false {
 			if noDataErr != nil {
 				// log.Fatal(noDataErr)
-				fmt.Printf("No data for ID %d, trying again in %d seconds...\r\n", feed, freq)
+				log.Printf("No data for ID %d, trying again in %d seconds...\r\n", feed, freq)
 				time.Sleep(time.Second * time.Duration(freq))
 				builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
 				userData = getWalltakerData(builtUrl)
@@ -404,16 +404,16 @@ func onReady() {
 		setterName = userData.SetBy.String
 		setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
 		if setterName != "" {
-			fmt.Printf(setterName)
-			fmt.Printf(" set your initial wallpaper: Setting... ")
+			log.Printf(setterName)
+			log.Printf(" set your initial wallpaper: Setting... ")
 			menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", setterName))
 		} else {
-			fmt.Printf("Anonymous set your initial wallpaper: Setting... ")
+			log.Printf("Anonymous set your initial wallpaper: Setting... ")
 			menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", "Anonymous"))
 		}
 		goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
 
-		fmt.Printf("Set!")
+		log.Printf("Set!")
 
 		if !crop {
 			err = wallpaper.SetMode(wallpaper.Fit)
@@ -426,7 +426,7 @@ func onReady() {
 		oldWallpaperUrl = wallpaperUrl
 
 		for range time.Tick(time.Second * time.Duration(freq)) {
-			fmt.Printf("Polling... ")
+			log.Printf("Polling... ")
 			builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
 			userData := getWalltakerData(builtUrl)
 			wallpaperUrl := userData.PostURL.String
@@ -435,20 +435,20 @@ func onReady() {
 
 			if wallpaperUrl != oldWallpaperUrl {
 				if setterName != "" {
-					fmt.Printf(setterName)
-					fmt.Printf(" set your wallpaper! Setting... ")
+					log.Printf(setterName)
+					log.Printf(" set your wallpaper! Setting... ")
 					menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", setterName))
 				} else {
-					fmt.Printf("New wallpaper found! Setting... ")
+					log.Printf("New wallpaper found! Setting... ")
 					menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", "Anonymous"))
 				}
 				goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
-				fmt.Printf("Set!")
+				log.Printf("Set!")
 				oldWallpaperUrl = wallpaperUrl
 			} else {
-				fmt.Printf("Nothing new yet.")
+				log.Printf("Nothing new yet.")
 			}
-			fmt.Printf("\r\n")
+			log.Printf("\r\n")
 		}
 	}()
 
@@ -480,20 +480,20 @@ func onReady() {
 					var i int
 					got, ok := inputbox.InputBox("Change active Walltaker ID", getInputText, "0")
 					if ok {
-						fmt.Println("you entered:", got)
+						log.Println("you entered:", got)
 					} else {
-						fmt.Println("No value entered")
+						log.Println("No value entered")
 					}
 					if got == "" {
-						fmt.Println(fmt.Sprintf("No value entered; keeping old value of %d", feed))
+						log.Println(fmt.Sprintf("No value entered; keeping old value of %d", feed))
 						break
 					}
 					i, err = strconv.Atoi(got)
 					if err != nil {
-						fmt.Println("Enter a valid number")
+						log.Println("Enter a valid number")
 						getInputText = "Enter a Walltaker ID to poll (you entered something that was not a number last time; try again)"
 					} else {
-						fmt.Println("Got: " + strconv.Itoa(i))
+						log.Println("Got: " + strconv.Itoa(i))
 						feed = int64(i)
 						if useDiscord == true {
 							discorderr := client.SetActivity(client.Activity{
@@ -512,7 +512,7 @@ func onReady() {
 							}
 						}
 						menuOpenMyWtWebAppLink.SetTitle(fmt.Sprintf("Open my Walltaker Page (%d)", feed))
-						fmt.Println("Set new Walltaker poll ID")
+						log.Println("Set new Walltaker poll ID")
 						break
 					}
 				}
@@ -532,12 +532,12 @@ func onReady() {
 					menuSaveImages.Check()
 				}
 				saveLocally = !saveLocally
-				fmt.Println(fmt.Sprintf("Changed saveLocally to %t", saveLocally))
+				log.Println(fmt.Sprintf("Changed saveLocally to %t", saveLocally))
 			case <-menuDiscordPresence.ClickedCh:
 				if menuDiscordPresence.Checked() {
 					menuDiscordPresence.Uncheck()
 					client.Logout()
-					fmt.Println("Stopped Discord Presence")
+					log.Println("Stopped Discord Presence")
 				} else {
 					menuDiscordPresence.Check()
 					discorderr := client.Login("942796233033019504")
@@ -559,7 +559,7 @@ func onReady() {
 					if discorderr != nil {
 						log.Fatal(discorderr)
 					}
-					fmt.Println("Started Discord Presence")
+					log.Println("Started Discord Presence")
 				}
 				useDiscord = !useDiscord
 			case <-menuNotifications.ClickedCh:
@@ -569,15 +569,74 @@ func onReady() {
 					menuNotifications.Check()
 				}
 				notifications = !notifications
-				fmt.Println(fmt.Sprintf("notifications set to %t", notifications))
+				log.Println(fmt.Sprintf("notifications set to %t", notifications))
 			case <-mQuit.ClickedCh:
 				systray.Quit()
-				fmt.Println("Quit now...")
+				log.Println("Quit now...")
 				return
 			}
 		}
 	}()
 }
+
+// func logOutput() func() {
+// 	// modified from https://gist.github.com/jerblack/4b98ba48ed3fb1d9f7544d2b1a1be287
+// 	cacheDir, err := os.UserCacheDir()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	wtCacheDir := filepath.Join(cacheDir, ".walltaker")
+// 	wtCacheLogsDir := filepath.Join(wtCacheDir, "logs")
+// 	if _, err := os.Stat(wtCacheDir); os.IsNotExist(err) {
+// 		err := os.Mkdir(wtCacheDir, os.FileMode(0777))
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	}
+// 	if _, err := os.Stat(wtCacheLogsDir); os.IsNotExist(err) {
+// 		err := os.Mkdir(wtCacheLogsDir, os.FileMode(0777))
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	}
+// 	logfile := filepath.Join(wtCacheLogsDir, "walltaker.log")
+// 	// open file read/write | create if not exist | clear file at open if exists
+// 	f, _ := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+
+// 	// save existing stdout | MultiWriter writes to saved stdout and file
+// 	out := os.Stdout
+// 	mw := io.MultiWriter(out, f)
+
+// 	// get pipe reader and writer | writes to pipe writer come out pipe reader
+// 	r, w, _ := os.Pipe()
+
+// 	// replace stdout,stderr with pipe writer | all writes to stdout, stderr will go through pipe instead (fmt.print, log)
+// 	os.Stdout = w
+// 	os.Stderr = w
+
+// 	// writes with log.Print should also write to mw
+// 	log.SetOutput(mw)
+
+// 	//create channel to control exit | will block until all copies are finished
+// 	exit := make(chan bool)
+
+// 	go func() {
+// 		// copy all reads from pipe to multiwriter, which writes to stdout and file
+// 		_, _ = io.Copy(mw, r)
+// 		// when r or w is closed copy will finish and true will be sent to channel
+// 		exit <- true
+// 	}()
+
+// 	// function to be deferred in main until program exits
+// 	return func() {
+// 		// close writer then block on exit channel | this will let mw finish writing before the program exits
+// 		_ = w.Close()
+// 		<-exit
+// 		// close file after all writes have finished
+// 		_ = f.Close()
+// 	}
+
+// }
 
 func logOutput() func() {
 	// modified from https://gist.github.com/jerblack/4b98ba48ed3fb1d9f7544d2b1a1be287
@@ -600,40 +659,16 @@ func logOutput() func() {
 		}
 	}
 	logfile := filepath.Join(wtCacheLogsDir, "walltaker.log")
-	// open file read/write | create if not exist | clear file at open if exists
-	f, _ := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	// defer f.Close()
 
-	// save existing stdout | MultiWriter writes to saved stdout and file
-	out := os.Stdout
-	mw := io.MultiWriter(out, f)
-
-	// get pipe reader and writer | writes to pipe writer come out pipe reader
-	r, w, _ := os.Pipe()
-
-	// replace stdout,stderr with pipe writer | all writes to stdout, stderr will go through pipe instead (fmt.print, log)
-	os.Stdout = w
-	os.Stderr = w
-
-	// writes with log.Print should also write to mw
-	log.SetOutput(mw)
-
-	//create channel to control exit | will block until all copies are finished
-	exit := make(chan bool)
-
-	go func() {
-		// copy all reads from pipe to multiwriter, which writes to stdout and file
-		_, _ = io.Copy(mw, r)
-		// when r or w is closed copy will finish and true will be sent to channel
-		exit <- true
-	}()
-
-	// function to be deferred in main until program exits
+	log.SetOutput(f)
+	// log.Println("This is a test log entry")
 	return func() {
-		// close writer then block on exit channel | this will let mw finish writing before the program exits
-		_ = w.Close()
-		<-exit
 		// close file after all writes have finished
 		_ = f.Close()
 	}
-
 }
