@@ -30,6 +30,8 @@ import (
 	"github.com/reujab/wallpaper"
 )
 
+var VERSION string = "v2.0.1"
+
 type WalltakerData struct {
 	ID               int         `json:"id"`
 	Expires          time.Time   `json:"expires"`
@@ -55,7 +57,7 @@ func getWalltakerData(url string) WalltakerData {
 		log.Fatal(err)
 	}
 
-	req.Header.Set("User-Agent", "Walltaker Go Client/2.0.1-"+runtime.GOOS)
+	req.Header.Set("User-Agent", "Walltaker Go Client/"+VERSION+"-"+runtime.GOOS)
 
 	res, getErr := webClient.Do(req)
 	if getErr != nil {
@@ -213,6 +215,38 @@ func openE621(postUrl string) {
 	}
 }
 
+func performVersionCheck() {
+	// get latest version tag from Github
+	resp, err := http.Get("https://api.github.com/repos/PawCorp/walltaker-desktop-client/releases/latest")
+	if err != nil {
+		log.Println("Failed to check for updates: ", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Failed to read response: ", err)
+		return
+	}
+
+	// parse response
+	var latestRelease struct {
+		TagName string `json:"tag_name"`
+	}
+	json.Unmarshal(body, &latestRelease)
+
+	// compare versions
+	if latestRelease.TagName != VERSION {
+		log.Println("A new version of Walltaker is available!")
+		log.Println("Current:", VERSION, "Latest:", latestRelease.TagName)
+		log.Println("You can download it from ", "https://github.com/PawCorp/walltaker-desktop-client/releases/latest")
+		errNotify := beeep.Notify("Walltaker", "A new version of Walltaker is available! Please visit https://q.pawcorp.org/wtgo to download.", "")
+		if errNotify != nil {
+			panic(errNotify)
+		}
+	}
+}
+
 func main() {
 	// log to file
 	fn := logOutput()
@@ -258,12 +292,12 @@ func onReady() {
 	╚███╔███╔╝██║  ██║███████╗███████╗██║   ██║  ██║██║  ██╗███████╗██║  ██║
 	 ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
-	 	v2.0.1. Go client by @OddPawsX
+	 	` + VERSION + `. Go client by @OddPawsX
 	 		 	Walltaker by Gray over at joi.how <3
 
 	(You can minimize this window; it will periodically check in for new wallpapers)
 	`)
-
+	performVersionCheck()
 	start := time.Now()
 
 	folderPath, err := osext.ExecutableFolder()
