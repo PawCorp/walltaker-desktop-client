@@ -30,7 +30,7 @@ import (
 	"github.com/reujab/wallpaper"
 )
 
-var VERSION string = "v2.0.1"
+var VERSION string = "v2.0.2"
 
 type WalltakerData struct {
 	ID               int         `json:"id"`
