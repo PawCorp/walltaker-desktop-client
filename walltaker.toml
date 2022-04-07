@@ -10,7 +10,7 @@
 ###########################  Base Config  ###########################
 #####################################################################
 
-[Base] # do not change
+[Base] # do not change 
 base = "https://walltaker.joi.how/links/"
 
 #####################################################################
@@ -28,14 +28,14 @@ feed = 0 # placeholder; please replace with your number, otherwise this will err
 # interval: how many seconds to wait between check-ins. Recommended: 10
 interval = 10
 
-# mode: whether to "crop" or "fit" the images
+# mode: whether to "crop" or "fit" the images. Defualt: "crop"
 mode = "crop"
 
-# discordPresence: whether or not to use Discord's Rich Presence to show you are running Walltaker
+# discordPresence: whether or not to use Discord's Rich Presence to show you are running Walltaker. Defualt: false
 discordPresence = false
 
-# saveLocally: save sent wallpapers into local files
+# saveLocally: save sent wallpapers into local files Defualt: false
 saveLocally = false
 
-# notifications: alert you using system notifications when new wallpapers come in
+# notifications: alert you using system notifications when new wallpapers come in. Defualt: false
 notifications = false
