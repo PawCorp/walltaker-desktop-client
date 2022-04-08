@@ -202,7 +202,7 @@ func goSetWallpaper(url string, saveLocally bool, setterName string, setAt strin
 		wallpaper.SetFromFile(file)
 		defer cleanUpCacheForMac(file) // OK to delete after setting wallpaper, MacOS shows bg w/o file remaining there
 	} else {
-		err := wallpaper.SetFromURL(url)
+		err := wallpaper.SetFromURL(getImageUrlWithAppropriateSize(url))
 
 		if err != nil {
 			log.Println("Ouch! Had a problem while setting your wallpaper.")
