@@ -276,14 +276,88 @@ func openWtSetterPage(setterName string) {
 	}
 }
 
+func extractMD5(url string) string {
+	if url != "" {
+		md5str := url[strings.LastIndex(url, "/")+1:]
+		md5str = strings.Split(md5str, ".")[0]
+		return md5str
+	}
+	return ""
+}
+
+func formatE621SearchByMD5(md5 string) string {
+	return fmt.Sprintf("https://e621.net/posts?tags=md5%%3A%s", md5)
+}
+
+func formatE621APISearchByMD5(md5 string) string {
+	return fmt.Sprintf("https://e621.net/posts.json?tags=md5%%3A%s", md5)
+}
+
 func openE621(postUrl string) {
 	// extract md5 from post url
 	if postUrl != "" {
-		md5str := postUrl[strings.LastIndex(postUrl, "/")+1:]
-		md5str = strings.Split(md5str, ".")[0]
-		log.Println(md5str)
-		browser.OpenURL(fmt.Sprintf("https://e621.net/posts?tags=md5%%3A%s", md5str))
+		e621Posts := getE621Data(postUrl)
+		if len(e621Posts.Posts) > 0 {
+			browser.OpenURL(fmt.Sprintf("https://e621.net/posts/%d", e621Posts.Posts[0].ID))
+		}
+		// md5url := formatE621SearchByMD5(extractMD5(postUrl))
+		// browser.OpenURL(md5url)
 	}
+}
+
+func getE621Data(postUrl string) E621PostsData {
+	// extract md5 from post url
+	if postUrl != "" {
+		postsDataUrl := formatE621APISearchByMD5(extractMD5(postUrl))
+
+		// get json data from url
+		webClient := http.Client{
+			Timeout: time.Second * 2, // Timeout after 2 seconds
+		}
+
+		req, err := http.NewRequest(http.MethodGet, postsDataUrl, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		req.Header.Set("User-Agent", "Walltaker Go Client/"+VERSION+"-"+runtime.GOOS)
+
+		res, getErr := webClient.Do(req)
+		if getErr != nil {
+			log.Fatal(getErr)
+		}
+
+		if res.Body != nil {
+			defer res.Body.Close()
+		}
+
+		body, readErr := ioutil.ReadAll(res.Body)
+		if readErr != nil {
+			log.Fatal(readErr)
+		}
+
+		postsData := E621PostsData{}
+		jsonErr := json.Unmarshal(body, &postsData)
+		if jsonErr != nil {
+			log.Fatal(jsonErr)
+		}
+		return postsData
+	}
+	return E621PostsData{}
+}
+
+func getImageUrlWithAppropriateSize(postUrl string) string {
+	if postUrl != "" {
+		postsData := getE621Data(postUrl)
+		if len(postsData.Posts) > 0 {
+			if postsData.Posts[0].File.Size > 17000000 {
+				return postsData.Posts[0].Sample.URL
+			} else {
+				return postsData.Posts[0].File.URL
+			}
+		}
+	}
+	return ""
 }
 
 func performVersionCheck() {
