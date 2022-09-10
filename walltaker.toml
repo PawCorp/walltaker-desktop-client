@@ -25,8 +25,8 @@ feed = 0 # placeholder; please replace with your number, otherwise this will err
 #####################################################################
 
 [Preferences]
-# interval: how many seconds to wait between check-ins. Recommended: 10
-interval = 10
+# interval: how many seconds to wait between check-ins. Recommended: 10 -- THIS IS DEPRECATED AS OF v2.1.0
+interval = 10  # THIS IS DEPRECATED AS OF v2.1.0
 
 # mode: whether to "crop" or "fit" the images. Defualt: "crop"
 mode = "crop"

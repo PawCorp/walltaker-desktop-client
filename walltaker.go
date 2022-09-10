@@ -110,7 +110,7 @@ func (h *LinkSubscriptionEventHandler) OnReceived(se *actioncable.SubscriptionEv
 	}
 }
 
-var VERSION string = "v2.0.3"
+var VERSION string = "v2.1.0"
 
 type WalltakerData struct {
 	ID               int         `json:"id"`
