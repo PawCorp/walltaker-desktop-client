@@ -3,6 +3,8 @@ Desktop client for Walltaker powered by golang
 
 v2.0.0+ - Now a System Tray App! 
 
+v2.1.0+ - Now using websockets!
+
 ## Usage
 - Download the release for your OS. Edit `walltaker.toml` to use the ID associated with your link.
 - Set the interval to however many seconds you want to wait between check-ins. 
