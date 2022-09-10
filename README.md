@@ -19,6 +19,14 @@ Tested on Ubuntu 20.04; the following pre-requisite packages must be installed t
 ```sh
 $ sudo apt install zenity libayatana-appindicator3-dev
 ```
+## Debug Log Paths
+Depending on what operating system you use the debug log path will be different
+
+**Windows Path:** ```%LOCALAPPDATA%\.walltaker\logs\walltaker.log```
+
+**Linux Path:** ```~/.cache/.walltaker/logs/walltaker.log```
+
+**Mac OSX Path:** ```~/Library/Caches/.walltaker/logs/walltaker.log```
 
 ## Thanks
 Special thanks to Gray over at joi.how for putting together the Walltaker project!
