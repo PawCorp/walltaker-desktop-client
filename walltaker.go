@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -27,10 +28,89 @@ import (
 	"github.com/martinlindhe/inputbox"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/browser"
+	"github.com/potato2003/actioncable-client-go"
 	"github.com/reujab/wallpaper"
 )
 
-var VERSION string = "v2.0.3"
+type Pref struct {
+	setterName      string
+	saveLocally     bool
+	notifications   bool
+	oldWallpaperUrl string
+}
+
+func (p *Pref) setSetterName(newSetterName string) {
+	fmt.Println("CALLED setSetterName()")
+	fmt.Println(newSetterName)
+	p.setterName = newSetterName
+}
+
+func (p *Pref) setSaveLocally(newSaveLocally bool) {
+	fmt.Println("CALLED setSaveLocally()")
+	fmt.Println(newSaveLocally)
+	p.saveLocally = newSaveLocally
+}
+
+func (p *Pref) setNotifications(newNotifications bool) {
+	fmt.Println("CALLED setNotifications()")
+	fmt.Println(newNotifications)
+	p.notifications = newNotifications
+}
+
+func (p *Pref) setOldWallpaperUrl(newOldWallpaperUrl string) {
+	fmt.Println("CALLED setOldWallpaperUrl()")
+	fmt.Println(newOldWallpaperUrl)
+	p.oldWallpaperUrl = newOldWallpaperUrl
+}
+
+var pref Pref
+
+var setterName string = ""
+var menuAppSetBy *systray.MenuItem = systray.AddMenuItem("-", "Who sent your most recent wallpaper~")
+var saveLocally bool = false
+var notifications bool = false
+
+type LinkSubscriptionEventHandler struct {
+	actioncable.SubscriptionEventHandler
+}
+
+func (h *LinkSubscriptionEventHandler) OnConnected(se *actioncable.SubscriptionEvent) {
+	fmt.Println("on connected")
+}
+
+func (h *LinkSubscriptionEventHandler) OnDisconnected(se *actioncable.SubscriptionEvent) {
+	fmt.Println("on disconnected")
+}
+
+func (h *LinkSubscriptionEventHandler) OnRejected(se *actioncable.SubscriptionEvent) {
+	fmt.Println("on rejected")
+}
+
+func (h *LinkSubscriptionEventHandler) OnReceived(se *actioncable.SubscriptionEvent) {
+	userData := WalltakerData{}
+	se.ReadJSON(&userData)
+	wallpaperUrl := userData.PostURL.String
+	log.Println("New Image... ")
+	if wallpaperUrl != pref.oldWallpaperUrl {
+		pref.setSetterName(userData.SetBy.String)
+		setterName = userData.SetBy.String
+		setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
+		if setterName != "" {
+			log.Printf(setterName)
+			log.Printf(" set your wallpaper! Setting... ")
+			menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", setterName))
+		} else {
+			log.Printf("New wallpaper found! Setting... ")
+			menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", "Anonymous"))
+		}
+		pref.setOldWallpaperUrl(wallpaperUrl)
+		goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
+		log.Printf("Set!")
+		log.Printf("\r\n")
+	}
+}
+
+var VERSION string = "v2.1.0"
 
 type WalltakerData struct {
 	ID               int         `json:"id"`
@@ -477,11 +557,10 @@ func onReady() {
 
 	base := config.Get("Base.base").(string)
 	feed := config.Get("Feed.feed").(int64)
-	freq := config.Get("Preferences.interval").(int64)
 	mode := config.Get("Preferences.mode").(string)
-	saveLocally := config.Get("Preferences.saveLocally").(bool)
+	saveLocally = config.Get("Preferences.saveLocally").(bool)
 	useDiscord := config.Get("Preferences.discordPresence").(bool)
-	notifications := config.Get("Preferences.notifications").(bool)
+	notifications = config.Get("Preferences.notifications").(bool)
 
 	if strings.ToLower(mode) == "fit" {
 		crop = false
@@ -531,11 +610,25 @@ func onReady() {
 	menuAppTimer := systray.AddMenuItem("Elapsed: 0", "Time since Walltaker started")
 	menuAppTimer.SetIcon(icon.Data)
 	menuAppTimer.Disabled()
-	menuAppSetBy := systray.AddMenuItem("-", "Who sent your most recent wallpaper~")
+	// menuAppSetBy := systray.AddMenuItem("-", "Who sent your most recent wallpaper~") // moved to global
 	menuE621 := systray.AddMenuItem("Open e621", "Open image on e621")
 	// menuAppSetBy.Disabled()
-	setterName := ""
-	oldWallpaperUrl := ""
+	setterName = ""
+
+	u, _ := url.Parse("wss://walltaker.joi.how/cable")
+	consumer, _ := actioncable.CreateConsumer(u, nil)
+	consumer.Connect()
+
+	params := map[string]interface{}{
+		"id": feed,
+	}
+
+	id := actioncable.NewChannelIdentifier("LinkChannel", params)
+	subscription, subErr := consumer.Subscriptions.Create(id)
+	if subErr != nil {
+		log.Fatal("Failed to subscribe")
+	}
+	subscription.SetHandler(&LinkSubscriptionEventHandler{})
 
 	// timer loop
 	go func() {
@@ -561,8 +654,6 @@ func onReady() {
 			os.Exit(0)
 		}()
 
-		log.Printf("Checking in every %d seconds...\r\n", freq)
-
 		userData := getWalltakerData(builtUrl)
 
 		wallpaperUrl, noDataErr := getWallpaperUrlFromData(userData)
@@ -570,8 +661,7 @@ func onReady() {
 		for ready == false {
 			if noDataErr != nil {
 				// log.Fatal(noDataErr)
-				log.Printf("No data for ID %d, trying again in %d seconds...\r\n", feed, freq)
-				time.Sleep(time.Second * time.Duration(freq))
+				time.Sleep(time.Second * time.Duration(5))
 				builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
 				userData = getWalltakerData(builtUrl)
 				wallpaperUrl, noDataErr = getWallpaperUrlFromData(userData)
@@ -602,33 +692,7 @@ func onReady() {
 			err = wallpaper.SetMode(wallpaper.Crop)
 		}
 
-		oldWallpaperUrl = wallpaperUrl
-
-		for range time.Tick(time.Second * time.Duration(freq)) {
-			log.Printf("Polling... ")
-			builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
-			userData := getWalltakerData(builtUrl)
-			wallpaperUrl := userData.PostURL.String
-			setterName = userData.SetBy.String
-			setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
-
-			if wallpaperUrl != oldWallpaperUrl {
-				if setterName != "" {
-					log.Printf(setterName)
-					log.Printf(" set your wallpaper! Setting... ")
-					menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", setterName))
-				} else {
-					log.Printf("New wallpaper found! Setting... ")
-					menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", "Anonymous"))
-				}
-				goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
-				log.Printf("Set!")
-				oldWallpaperUrl = wallpaperUrl
-			} else {
-				log.Printf("Nothing new yet.")
-			}
-			log.Printf("\r\n")
-		}
+		pref.setOldWallpaperUrl(wallpaperUrl)
 	}()
 
 	go func() {
@@ -648,7 +712,7 @@ func onReady() {
 		for {
 			select {
 			case <-menuE621.ClickedCh:
-				openE621(oldWallpaperUrl)
+				openE621(pref.oldWallpaperUrl)
 			case <-menuAppSetBy.ClickedCh:
 				openWtSetterPage(setterName)
 			case <-menuOpenMyWtWebAppLink.ClickedCh:
@@ -674,6 +738,57 @@ func onReady() {
 					} else {
 						log.Println("Got: " + strconv.Itoa(i))
 						feed = int64(i)
+						subscription.Unsubscribe() // unsubscribe from previous channel
+						params := map[string]interface{}{
+							"id": feed,
+						}
+
+						id := actioncable.NewChannelIdentifier("LinkChannel", params)
+						subscription, subErr := consumer.Subscriptions.Create(id)
+						if subErr != nil {
+							log.Fatal("Failed to subscribe")
+						}
+						subscription.SetHandler(&LinkSubscriptionEventHandler{})
+						builtUrl := base + strconv.FormatInt(feed, 10) + ".json"
+						userData := getWalltakerData(builtUrl)
+
+						wallpaperUrl, noDataErr := getWallpaperUrlFromData(userData)
+						ready := noDataErr == nil
+						for ready == false {
+							if noDataErr != nil {
+								// log.Fatal(noDataErr)
+								time.Sleep(time.Second * time.Duration(5))
+								builtUrl = base + strconv.FormatInt(feed, 10) + ".json" // account for runtime change of poll ID
+								userData = getWalltakerData(builtUrl)
+								wallpaperUrl, noDataErr = getWallpaperUrlFromData(userData)
+							} else {
+								ready = true
+							}
+						}
+
+						setterName = userData.SetBy.String
+						setAt := strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-")
+						if setterName != "" {
+							log.Printf(setterName)
+							log.Printf(" set your initial wallpaper: Setting... ")
+							menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", setterName))
+						} else {
+							log.Printf("Anonymous set your initial wallpaper: Setting... ")
+							menuAppSetBy.SetTitle(fmt.Sprintf("Set by %s", "Anonymous"))
+						}
+						goSetWallpaper(wallpaperUrl, saveLocally, setterName, setAt, notifications)
+
+						log.Printf("Set!")
+
+						if !crop {
+							err = wallpaper.SetMode(wallpaper.Fit)
+						} else if crop {
+							err = wallpaper.SetMode(wallpaper.Crop)
+						} else {
+							err = wallpaper.SetMode(wallpaper.Crop)
+						}
+
+						pref.setOldWallpaperUrl(wallpaperUrl)
 						if useDiscord == true {
 							discorderr := client.SetActivity(client.Activity{
 								State: "Set my wallpaper~",
